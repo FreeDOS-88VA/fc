@@ -54,7 +54,7 @@ int FindFirst(const char* PathName, find_data* FindData, int Attrib)
   s.es = FP_SEG(&FindResults);	r.x.di = FP_OFF(&FindResults);
   r.x.cflag = CARRY;		/* Set carry to prepare for failure */
   intdosx(&r, &r, &s);
-  if (r.x.cflag != CARRY)	/* No carry -> Ok */
+  if (r.x.cflag == 0)	/* No carry -> Ok */
   {
     FindData->Handle = r.x.ax;
     errno = 0;
@@ -100,7 +100,7 @@ int FindNext(find_data* FindData)
     s.es = FP_SEG(&FindResults); r.x.di = FP_OFF(&FindResults);
     r.x.cflag = CARRY;		/* Set carry to prepare for failure */
     intdosx(&r, &r, &s);
-    if (r.x.cflag != CARRY)	/* No carry -> Ok */
+    if (r.x.cflag == 0)	/* No carry -> Ok */
     {
       errno = 0;
       if (FindResults.LongFilename != END_OF_STRING)
@@ -139,7 +139,7 @@ int FindClose(find_data* FindData)
     r.x.bx = FindData->Handle;
     intdosx(&r, &r, &s);
     errno = 0;
-    if (r.x.cflag == CARRY)
+    if (r.x.cflag != 0)
       errno = r.x.ax;		/* DOS error code */
     return errno;
   }
@@ -186,14 +186,14 @@ char* FullPath(char* Buffer, char *Path, int BufferSize)
     s.ds = FP_SEG(WorkPointer);	r.x.si = FP_OFF(WorkPointer);
     r.x.cflag = CARRY;		/* Set carry to prepare for failure */
     intdosx(&r, &r, &s);
-    if (r.x.cflag == CARRY)	/* Carry -> Not ok */
+    if (r.x.cflag != 0)	/* Carry -> Not ok */
     {
       r.x.ax = 0x4700;		/* Get current directory (SFN) */
       r.x.dx = Drive;
       s.ds = FP_SEG(WorkPointer); r.x.si = FP_OFF(WorkPointer);
       r.x.cflag = CARRY;	/* Set carry to prepare for failure */
       intdosx(&r, &r, &s);
-      if (r.x.cflag == CARRY)	/* Carry -> Not ok */
+      if (r.x.cflag != 0)	/* Carry -> Not ok */
       {
         /* We should complain but this library is quiet (only failure is invalid drive */
       }
@@ -285,7 +285,7 @@ FILE* FileOpen(const char* Filename, const char* Mode)
   s.es = FP_SEG(ShortFilename);	r.x.di = FP_OFF(ShortFilename);
   r.x.cflag = CARRY;		/* Set carry to prepare for failure */
   intdosx(&r, &r, &s);
-  if (r.x.cflag != CARRY)	/* No carry -> Ok */
+  if (r.x.cflag == 0)	/* No carry -> Ok */
     return fopen(ShortFilename, Mode);
 
   return fopen(Filename, Mode);
@@ -307,12 +307,12 @@ bool IsADirectory(char Filename[])
   s.es = FP_SEG(&FindResults);	r.x.di = FP_OFF(&FindResults);
   r.x.cflag = CARRY;		/* Set carry to prepare for failure */
   intdosx(&r, &r, &s);
-  if (r.x.cflag != CARRY)	/* No carry -> Ok */
+  if (r.x.cflag == 0)	/* No carry -> Ok */
   {
     r.x.bx = r.x.ax;		/* Handle */
     r.x.ax = 0x71A1;		/* Terminate directory search */
     intdosx(&r, &r, &s);
-    if (r.x.cflag == CARRY)
+    if (r.x.cflag != 0)
       errno = r.x.ax;		/* DOS error code */
     return ((FindResults.Attributes & _A_SUBDIR) != 0);
   }
@@ -499,7 +499,7 @@ void UpCaseInit(void)
     r.x.cx = sizeof(UpCaseBuf);
     s.es = FP_SEG(&UpCaseBuf); r.x.di = FP_OFF(&UpCaseBuf);
     intdosx(&r, &r, &s);
-    if ((r.x.cflag != CARRY) &&  /* No carry -> Ok */
+    if ((r.x.cflag == 0) &&  /* No carry -> Ok */
 	(UpCaseBuf.ID == 2) &&
 	(UpCaseBuf.Data->Size == UPCASE_TABLE_SIZE))
        UpCaseTable = UpCaseBuf.Data->Table;
